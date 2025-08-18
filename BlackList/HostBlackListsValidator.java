@@ -56,7 +56,6 @@ public class HostBlackListsValidator {
             }
         }
 
-        // Consolidar resultados
         int occurrencesCount = 0;
         int checkedListsCount = 0;
 
