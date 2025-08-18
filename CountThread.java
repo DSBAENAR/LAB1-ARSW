@@ -17,7 +17,11 @@ public class CountThread extends Thread {
         this.end = end;
     }
 
-
+    @Override
+    public void run() {
+        increment();
+    }
+    
     public void increment() {
         for (int i = initial; i <= end; i++) {
             System.out.println("Counting: " + i);

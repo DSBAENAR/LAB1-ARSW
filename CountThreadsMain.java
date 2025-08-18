@@ -4,15 +4,24 @@
  * and open the template in the editor.
  */
 
-
 /**
  *
  * @author hcadavid
  */
+
 public class CountThreadsMain {
     
     public static void main(String a[]){
+        CountThread ct1 = new CountThread(0, 99);
+        CountThread ct2 = new CountThread(99, 199);
+        CountThread ct3 = new CountThread(200, 299);
         
+        ct1.start();
+        ct2.start();
+        ct3.start();
+        
+        
+        System.out.println("Counting completed.");
     }
     
 }
