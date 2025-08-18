@@ -694,3 +694,146 @@ Counting completed.
 ```
 En este caso la salida cambia por orden de ejecución, el método start crea un nuevo hilo mientras que el método run se ejecuta en el hilo recién creado, no se puede invocar más de una vez, de lo contrario se lanza java.lang.IllegalStateException, mientras que con el método start es posible realizar múltiples invocaciones.
 
+## Parte II - Ejercicio Black List Search
+
+1. Cree una clase de tipo Thread que represente el ciclo de vida de un hilo que haga la búsqueda de un segmento del conjunto de servidores disponibles. Agregue a dicha clase un método que permita 'preguntarle' a las instancias del mismo (los hilos) cuantas ocurrencias de servidores maliciosos ha encontrado o encontró.
+
+```java
+package BlackList;
+
+import java.util.LinkedList;
+import java.util.List;
+
+/* This class represents a thread that checks a range of blacklists for a given IP address.
+ * It collects the occurrences of the IP address in the specified range and counts how many
+ * times it was checked.
+ */
+public class BlackListThread extends Thread {
+    private int start;
+    private int end;
+    private String ipAddress;
+    private List<Integer> occurrences;
+    private int counter;
+
+
+    public BlackListThread(int start, int end, String ipAddress) {
+        this.start = start;
+        this.end = end;
+        this.ipAddress = ipAddress;
+        this.occurrences = new LinkedList<>();
+        this.counter = 0;
+    }
+
+    @Override
+    public void run(){
+        HostBlacklistsDataSourceFacade skds = HostBlacklistsDataSourceFacade.getInstance();
+        for (int i = start; i < end; i++){
+            counter++;
+            if (skds.isInBlackListServer(i, ipAddress)){
+                occurrences.add(i);
+            }
+        }
+    }
+
+
+    public List<Integer> getOccurrences() {
+        return occurrences;
+    }
+
+
+    public int getCounter() {
+        return counter;
+    }
+```
+
+2. Agregue al método 'checkHost' un parámetro entero N, correspondiente al número de hilos entre los que se va a realizar la búsqueda (recuerde tener en cuenta si N es par o impar!). Modifique el código de este método para que divida el espacio de búsqueda entre las N partes indicadas, y paralelice la búsqueda a través de N hilos. Haga que dicha función espere hasta que los N hilos terminen de resolver su respectivo sub-problema, agregue las ocurrencias encontradas por cada hilo a la lista que retorna el método, y entonces calcule (sumando el total de ocurrencuas encontradas por cada hilo) si el número de ocurrencias es mayor o igual a BLACK_LIST_ALARM_COUNT. Si se da este caso, al final se DEBE reportar el host como confiable o no confiable, y mostrar el listado con los números de las listas negras respectivas. Para lograr este comportamiento de 'espera' revise el método join del API de concurrencia de Java. Tenga también en cuenta:
+
+Dentro del método checkHost Se debe mantener el LOG que informa, antes de retornar el resultado, el número de listas negras revisadas VS. el número de listas negras total (línea 60). Se debe garantizar que dicha información sea verídica bajo el nuevo esquema de procesamiento en paralelo planteado.
+
+Se sabe que el HOST 202.24.34.55 está reportado en listas negras de una forma más dispersa, y que el host 212.24.24.55 NO está en ninguna lista negra.
+
+### Diseño de la solución
+
+Para cumplir con esto, pensé en tres fases:
+
+a) División del trabajo
+
+Supongamos que tenemos totalServers = skds.getRegisteredServersCount().
+
+Si queremos dividirlo en N hilos, cada uno debería tener un rango de índices:
+
+Hilo 1: 0 a k-1
+
+Hilo 2: k a 2k-1
+.
+.
+.
+
+Se reparte el “sobrante” (remainder) en los primeros hilos, para que todos revisen casi la misma cantidad.
+
+b) Hilos trabajadores
+
+Cada hilo debe:
+
+* Revisar los servidores en su rango.
+
+* Guardar los índices de listas donde se encontró el host y el número de listas revisadas.
+
+
+
+```java
+public List<Integer> checkHost(String ipaddress, int N) {
+
+        LinkedList<Integer> blackListOccurrences = new LinkedList<>();
+        HostBlacklistsDataSourceFacade skds = HostBlacklistsDataSourceFacade.getInstance();
+
+        int totalServers = skds.getRegisteredServersCount();
+        int chunkSize = totalServers / N;
+        int remainder = totalServers % N; // para manejar si no es divisible exacto
+
+        BlackListThread[] threads = new BlackListThread[N];
+        int start = 0;
+
+        // Crear hilos dividiendo el trabajo
+        for (int i = 0; i < N; i++) {
+            int end = start + chunkSize;
+            if (i < remainder) { // distribuir el sobrante
+                end++;
+            }
+            threads[i] = new BlackListThread(start, end, ipaddress);
+            threads[i].start();
+            start = end;
+        }
+
+        
+        for (int i = 0; i < N; i++) {
+            try {
+                threads[i].join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        
+        int occurrencesCount = 0;
+        int checkedListsCount = 0;
+
+        for (BlackListThread t : threads) {
+            blackListOccurrences.addAll(t.getOccurrences());
+            occurrencesCount += t.getOccurrences().size();
+            checkedListsCount += t.getCounter();
+        }
+
+        
+        if (occurrencesCount >= BLACK_LIST_ALARM_COUNT) {
+            skds.reportAsNotTrustworthy(ipaddress);
+        } else {
+            skds.reportAsTrustworthy(ipaddress);
+        }
+
+        LOG.log(Level.INFO, "Checked Black Lists:{0} of {1}",
+                new Object[]{checkedListsCount, skds.getRegisteredServersCount()});
+
+        return blackListOccurrences;
+    }
+```
