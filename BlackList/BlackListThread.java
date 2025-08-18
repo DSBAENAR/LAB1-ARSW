@@ -29,7 +29,6 @@ public class BlackListThread extends Thread {
         for (int i = start; i < end; i++){
             counter++;
             if (skds.isInBlackListServer(i, ipAddress)){
-                System.out.println("Thread " + Thread.currentThread().getName() + " found IP " + ipAddress + " in blacklist " + i);
                 occurrences.add(i);
             }
         }
