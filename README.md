@@ -934,4 +934,38 @@ Hilos: 100 | Tiempo: 147 ms | Ocurrencias: 5
 
 <img width="573" height="374" alt="image" src="https://github.com/user-attachments/assets/c2d730a6-e3be-4e5b-be18-dcae94c447ab" />
 
-La imagén muestra que los resultados son peores con muy poco o sin hilos , o demasiados hilos, es un resultado esperado, ya que sin hilos o muy pocos la búsqueda será ineficiente, mientras que con demasiados hilos, hay un sobreexceso de trabajo, ya que, los hilos que no han encontrado las direcciones tengan que esperar a los hilos que ya las han encontrado, esto tiene mucho impacto en el tiempo. Algo que se debe de observar es que no hay mucha variedad de tiempos entre los 8 hilos a los 100.000 hilos, esto puede deberse por dos factores, la primera es que el algoritmo es muy eficiente, la segunda es la eficiencia de la máquina en la que se está trabajando.
+La imágen muestra que los resultados son peores con muy poco o sin hilos , o demasiados hilos, es un resultado esperado, ya que sin hilos o muy pocos la búsqueda será ineficiente, mientras que con demasiados hilos, hay un sobreexceso de trabajo, ya que, los hilos que no han encontrado las direcciones tengan que esperar a los hilos que ya las han encontrado, esto tiene mucho impacto en el tiempo. Algo que se debe de observar es que no hay mucha variedad de tiempos entre los 8 hilos a los 100.000 hilos, esto puede deberse por dos factores, la primera es que el algoritmo es muy eficiente, la segunda es la eficiencia de la máquina en la que se está trabajando.
+
+## Parte IV - Ejercicio Black List Search
+
+1. Según la ley de Amdahls:
+<img width="190" height="66" alt="image" src="https://github.com/user-attachments/assets/9f33c813-affa-441d-a047-9758cc73e460" /><br>
+
+donde S(n) es el mejoramiento teórico del desempeño, P la fracción paralelizable del algoritmo, y n el número de hilos, a mayor n, mayor debería ser dicha mejora. Por qué el mejor desempeño no se logra con los 500 hilos?, cómo se compara este desempeño cuando se usan 200?.
+
+* En una CPU con C núcleos, cuando pones 𝑛 ≫ 𝐶 los hilos no corren en paralelo: el SO los rota en los mismos C núcleos. Si 
+    𝑛 ya es mucho mayor que 𝐶, no se gana más paralelismo; solo se suma overhead.
+
+2. Cómo se comporta la solución usando tantos hilos de procesamiento como núcleos comparado con el resultado de usar el doble de éste?.
+    = núcleos (n=C): suele ser óptimo para cargas CPU-bound puras (Un proceso "cpu bound puro" es una tarea que está limitada por la velocidad del procesador, es decir, el tiempo que tarda en completarse depende casi exclusivamente del rendimiento de la CPU, y no de las operaciones de entrada/salida (E/S) o la memoria.)
+
+3. A. De acuerdo con lo anterior, si para este problema en lugar de 100 hilos en una sola CPU se pudiera usar 1 hilo en cada una de 100 máquinas hipotéticas, la ley de Amdahls se aplicaría mejor?. 
+
+Amdahl sí aplica, pero ahora el tiempo total incluye comunicación y coordinación entre máquinas:
+
+ $\ T_{total} ≈ T((1 - P) + \frac{P}{100}) + T_{comm}$
+
+
+Si 𝑃 es muy alto y el trabajo por máquina es grueso (poca comunicación), 100 máquinas pueden acercarse a 
+𝑆(100). Con 𝑃 = 0.95
+𝑆(100) ≈ 16.8 vs (𝑆(8) ≈ 5.93 en 8 núcleos). Será mejor solo si 𝑇 comm es pequeño frente a la ganancia (no hay ganancia en red).
+
+El total de núcleos sigue siendo ~100. Idealmente:<br>
+$\ S ≈ \large \frac{1}{(1-P) + \large \frac{P}{100}}$
+
+B. Si en lugar de esto se usaran c hilos en 100/c máquinas distribuidas (siendo c es el número de núcleos de dichas máquinas), se mejoraría?
+—independiente de 𝑐—; lo que cambia es el overhead:
+
+Más máquinas, menos núcleos por máquina ⇒ más mensajes inter-nodo (más latencia).
+
+Menos máquinas, más núcleos por máquina ⇒ menos comunicación entre nodos, mejor caché compartida, pero más contención local si la memoria es el cuello de botella.
