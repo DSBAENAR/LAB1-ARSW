@@ -837,3 +837,101 @@ public List<Integer> checkHost(String ipaddress, int N) {
         return blackListOccurrences;
     }
 ```
+## Parte III - Evaluación de Desempeño
+
+A partir de lo anterior, implemente la siguiente secuencia de experimentos para realizar las validación de direcciones IP dispersas (por ejemplo 202.24.34.55), tomando los tiempos de ejecución de los mismos (asegúrese de hacerlos en la misma máquina):
+Al iniciar el programa ejecute el monitor jVisualVM, y a medida que corran las pruebas, revise y anote el consumo de CPU y de memoria en cada caso.
+
+
+* Un solo hilo.
+
+```java
+public static void main(String[] args) throws Exception {
+    HostBlackListsValidator validator = new HostBlackListsValidator();
+        int cores = Runtime.getRuntime().availableProcessors();
+        System.out.println("Número de núcleos disponibles: " + cores);
+        int N = 1; 
+        long start = System.currentTimeMillis();
+        List<Integer> result = validator.checkHost("202.24.34.55", N);
+        long end = System.currentTimeMillis();
+
+        System.out.println("Hilos: " + N +
+                " | Tiempo: " + (end - start) + " ms" +
+                " | Ocurrencias: " + result.size());
+    
+        Thread.sleep(60000);
+}
+```
+<img width="1012" height="690" alt="image" src="https://github.com/user-attachments/assets/54b388d1-334f-4cfc-b033-578ebf6c28fc" />
+
+Para saber tomar el tiempo de ejecución tenemos que medir el tiempo en el que inicia y restar el tiempo en el que se finaliza, como se ve en el siguiente segmento
+
+```java
+        long start = System.currentTimeMillis();
+        List<Integer> result = validator.checkHost("202.24.34.55", N); // metodo a probar
+        long end = System.currentTimeMillis();
+```
+Resultado en consola
+```sh
+Aug 22, 2025 4:41:57 PM BlackList.HostBlacklistsDataSourceFacade reportAsNotTrustworthy
+INFO: HOST 202.24.34.55 Reported as NOT trustworthy
+Aug 22, 2025 4:41:57 PM BlackList.HostBlackListsValidator checkHost
+INFO: Checked Black Lists:80,000 of 80,000
+Hilos: 1 | Tiempo: 674 ms | Ocurrencias: 5
+```
+
+  
+* Tantos hilos como núcleos de procesamiento (haga que el programa determine esto haciendo uso del API Runtime).<br>
+  Con el siguiente  método se puede obtener el número de procesadores
+  ```java
+  Runtime.getRuntime().availableProcessors()
+  ```
+  <img width="1011" height="624" alt="image" src="https://github.com/user-attachments/assets/c80a0d8e-d0c2-4bdc-8e2e-74384b92a902" />
+
+Resultado en consola
+
+```sh
+Número de núcleos disponibles: 8
+Aug 22, 2025 4:48:42 PM BlackList.HostBlacklistsDataSourceFacade reportAsNotTrustworthy
+INFO: HOST 202.24.34.55 Reported as NOT trustworthy
+Aug 22, 2025 4:48:42 PM BlackList.HostBlackListsValidator checkHost
+INFO: Checked Black Lists:80,000 of 80,000
+Hilos: 8 | Tiempo: 155 ms | Ocurrencias: 5
+```
+* Tantos hilos como el doble de núcleos de procesamiento.
+  <br>
+  <img width="1014" height="609" alt="image" src="https://github.com/user-attachments/assets/17478f04-9919-4c1a-b50f-5400d764eeb2" />
+  <br>11
+  Resultado en consola
+  ```sh
+  Aug 22, 2025 4:52:21 PM BlackList.HostBlackListsValidator checkHost
+  INFO: Checked Black Lists:80,000 of 80,000
+  Hilos: 16 | Tiempo: 125 ms | Ocurrencias: 5
+  ```
+* 50 hilos.
+  <img width="1006" height="624" alt="image" src="https://github.com/user-attachments/assets/e6944c68-5890-4696-80e5-38dab972d5d0" />
+```sh
+Aug 22, 2025 4:54:09 PM BlackList.HostBlacklistsDataSourceFacade reportAsNotTrustworthy
+INFO: HOST 202.24.34.55 Reported as NOT trustworthy
+Aug 22, 2025 4:54:09 PM BlackList.HostBlackListsValidator checkHost
+INFO: Checked Black Lists:80,000 of 80,000
+Hilos: 50 | Tiempo: 130 ms | Ocurrencias: 5
+```
+
+* 100 hilos.
+
+ <img width="1030" height="587" alt="image" src="https://github.com/user-attachments/assets/efd249aa-b42c-4976-bd7c-6d2770d34040" />
+
+Resultado en consola
+  ```sh
+Aug 22, 2025 4:55:41 PM BlackList.HostBlacklistsDataSourceFacade reportAsNotTrustworthy
+INFO: HOST 202.24.34.55 Reported as NOT trustworthy
+Aug 22, 2025 4:55:41 PM BlackList.HostBlackListsValidator checkHost
+INFO: Checked Black Lists:80,000 of 80,000
+Hilos: 100 | Tiempo: 147 ms | Ocurrencias: 5
+  ```
+* Con lo anterior, y con los tiempos de ejecución dados, haga una gráfica de tiempo de solución vs. número de hilos. Analice y plantee hipótesis:
+
+<img width="573" height="374" alt="image" src="https://github.com/user-attachments/assets/c2d730a6-e3be-4e5b-be18-dcae94c447ab" />
+
+La imagén muestra que los resultados son peores con muy poco o sin hilos , o demasiados hilos, es un resultado esperado, ya que sin hilos o muy pocos la búsqueda será ineficiente, mientras que con demasiados hilos, hay un sobreexceso de trabajo, ya que, los hilos que no han encontrado las direcciones tengan que esperar a los hilos que ya las han encontrado, esto tiene mucho impacto en el tiempo. Algo que se debe de observar es que no hay mucha variedad de tiempos entre los 8 hilos a los 100.000 hilos, esto puede deberse por dos factores, la primera es que el algoritmo es muy eficiente, la segunda es la eficiencia de la máquina en la que se está trabajando.
